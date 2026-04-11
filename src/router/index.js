@@ -2,9 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 
 const routes = [
-    { path: '/', redirect: '/login' },
 
     // ── Auth (públicas) ──────────────────────────────────
+    {
+         path: '/',
+        name: 'Home',
+        component: () => import('@/views/HomeView.vue'),
+    },
     {
         path: '/login',
         name: 'Login',
