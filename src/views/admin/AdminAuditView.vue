@@ -151,7 +151,8 @@
                 <td class="td-date">
                   {{ new Date(log.fecha).toLocaleDateString('es-CO', {
                     day: '2-digit', month: 'short', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit' }) }}
+                    hour: '2-digit', minute: '2-digit'
+                  }) }}
                 </td>
               </tr>
             </tbody>
@@ -241,18 +242,18 @@ onMounted(async () => {
     auditLogs.value = res.data.data
   } catch (e) {
     console.error('Error auditoría:', e)
-    // Si no hay datos del backend mostramos vacío
     auditLogs.value = []
   } finally {
     loading.value = false
   }
 })
 
+// ✅ CORREGIDO: todos los links apuntan a rutas /admin/
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' },
+  { path: '/admin/dashboard', label: 'Dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' },
   { path: '/admin/users', label: 'Usuarios', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+  { path: '/admin/accounts', label: 'Cuentas', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
   { path: '/admin/audit', label: 'Auditoría', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
-  { path: '/accounts', label: 'Cuentas', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
 ]
 </script>
 

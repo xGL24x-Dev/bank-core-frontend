@@ -224,11 +224,11 @@ onMounted(async () => {
     const txData = await transactionService.getMyTransactions(4)
     recentActivity.value = txData.data.map(tx => ({
       id: tx.id_transaccion,
-      icon: tx.tipo === 'deposito' ? '💰' : tx.tipo === 'transferencia' ? '⚡' : '🛒',
+      icon: tx.tipo === 'deposito' ? '💰' : tx.tipo === 'prestamo' ? '🏦' : tx.tipo === 'transferencia' ? '⚡' : tx.tipo === 'pago_cuota' ? '📋' : '🛒',
       name: tx.descripcion || tx.tipo,
       date: new Date(tx.fecha).toLocaleDateString('es-CO'),
       amount: Number(tx.monto).toLocaleString('es-CO'),
-      type: tx.tipo === 'deposito' ? 'credit' : 'debit',
+      type: (tx.tipo === 'deposito' || tx.tipo === 'prestamo') ? 'credit' : 'debit',
     }))
   } catch (e) {
     console.error('Error transacciones:', e)
@@ -244,8 +244,8 @@ onMounted(async () => {
       cuotas: loan.cuotas,
       interes: Number(loan.interes),
       fecha: new Date(loan.fecha).toLocaleDateString('es-CO'),
-      status: loan.estado,
-      progress: 0,
+      status: loan.estado === 'aprobado' ? 'active' : loan.estado === 'pendiente' ? 'pending' : loan.estado === 'pagado' ? 'paid' : loan.estado,
+      progress: loan.progreso || 0,
     }))
   } catch (e) {
     console.error('Error préstamos:', e)

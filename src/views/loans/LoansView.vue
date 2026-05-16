@@ -163,12 +163,51 @@
               </div>
             </div>
 
-            <div class="loan-progress-wrap" v-if="loan.estado === 'aprobado'">
+            <div class="loan-progress-wrap" v-if="loan.estado === 'aprobado' || loan.estado === 'pagado'">
               <div class="loan-progress-bar">
-                <div class="loan-progress-fill" style="width: 0%"></div>
+                <div class="loan-progress-fill" :style="{ width: (loan.progreso || 0) + '%' }"></div>
               </div>
-              <div class="loan-progress-label">0% pagado</div>
+              <div class="loan-progress-label">
+                {{ loan.cuotas_pagadas || 0 }} / {{ loan.cuotas }} cuotas ({{ loan.progreso || 0 }}%)
+              </div>
             </div>
+
+            <div v-if="loan.desembolsado || loan.cuotas_detalle?.length" class="loan-disbursed-msg">
+              💰 Crédito desembolsado a tu saldo disponible
+            </div>
+
+            <div v-if="loan.proxima_cuota && loan.estado === 'aprobado'" class="loan-next-payment">
+              <div class="next-payment-title">📅 Próximo pago — Cuota {{ loan.proxima_cuota.numero_cuota }}</div>
+              <div class="next-payment-row">
+                <span>Monto</span>
+                <strong>$ {{ Number(loan.proxima_cuota.monto).toLocaleString('es-CO') }}</strong>
+              </div>
+              <div class="next-payment-row">
+                <span>Vence</span>
+                <strong :class="{ 'text-overdue': loan.proxima_cuota.estado === 'vencida' }">
+                  {{ formatDate(loan.proxima_cuota.fecha_vencimiento) }}
+                  <span v-if="loan.proxima_cuota.estado === 'vencida'"> (vencida)</span>
+                </strong>
+              </div>
+              <button class="btn-pay-cuota" :disabled="payingCuota === loan.id_prestamo" @click="handlePayCuota(loan.id_prestamo)">
+                <span v-if="payingCuota === loan.id_prestamo" class="spinner-dark"></span>
+                <span v-else>Pagar cuota</span>
+              </button>
+            </div>
+
+            <details v-if="loan.cuotas_detalle?.length" class="cuotas-details">
+              <summary>Ver plan de cuotas</summary>
+              <div class="cuotas-table">
+                <div v-for="c in loan.cuotas_detalle" :key="c.id_cuota" class="cuota-row" :class="`cuota-row--${c.estado}`">
+                  <span>#{{ c.numero_cuota }}</span>
+                  <span>$ {{ Number(c.monto).toLocaleString('es-CO') }}</span>
+                  <span>{{ formatDate(c.fecha_vencimiento) }}</span>
+                  <span class="cuota-estado">{{ getCuotaLabel(c.estado) }}</span>
+                </div>
+              </div>
+            </details>
+
+            <div v-if="loan.estado === 'pagado'" class="loan-paid-msg">✅ Préstamo pagado en su totalidad</div>
 
             <div class="loan-pending-msg" v-if="loan.estado === 'pendiente'">
               ⏳ Tu solicitud está siendo revisada por nuestro equipo.
@@ -283,6 +322,8 @@ const showModal = ref(false)
 const creating = ref(false)
 const loanError = ref('')
 const loanSuccess = ref('')
+const payingCuota = ref(null)
+const payMsg = ref('')
 
 const cuotasOptions = [3, 6, 12, 24, 36, 48]
 
@@ -319,6 +360,31 @@ const getStatusColor = (estado) => ({
   rechazado: '#dc3545',
   pagado: '#007BFF',
 }[estado] || '#6C757D')
+
+const getCuotaLabel = (estado) => ({
+  pendiente: 'Pendiente',
+  pagada: 'Pagada',
+  vencida: 'Vencida',
+}[estado] || estado)
+
+const formatDate = (d) => {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const handlePayCuota = async (loanId) => {
+  payingCuota.value = loanId
+  payMsg.value = ''
+  try {
+    const res = await loanService.payCuota(loanId)
+    payMsg.value = res.message
+    await loadLoans()
+  } catch (e) {
+    alert(e.response?.data?.message || 'No se pudo pagar la cuota')
+  } finally {
+    payingCuota.value = null
+  }
+}
 
 const calcCuota = (monto, interes, cuotas) => {
   const m = Number(monto)
@@ -1022,6 +1088,125 @@ const menuItems = [
   padding: 0.65rem 1rem;
   border-radius: 10px;
   font-family: 'Inter', sans-serif;
+}
+
+.loan-disbursed-msg,
+.loan-paid-msg {
+  font-size: 0.82rem;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.loan-disbursed-msg {
+  color: #166534;
+  background: rgba(40, 167, 69, 0.12);
+}
+
+.loan-paid-msg {
+  color: #007BFF;
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.loan-next-payment {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.next-payment-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #92400e;
+  font-family: 'Inter', sans-serif;
+}
+
+.next-payment-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.text-overdue {
+  color: #dc3545;
+}
+
+.btn-pay-cuota {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #007BFF, #0056d6);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-pay-cuota:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-dark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+.cuotas-details {
+  font-size: 0.82rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.cuotas-details summary {
+  cursor: pointer;
+  color: #007BFF;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.cuotas-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cuota-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 90px 70px;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  background: #f8f9fa;
+  font-size: 0.75rem;
+}
+
+.cuota-row--pagada {
+  opacity: 0.7;
+  background: #f0fdf4;
+}
+
+.cuota-row--vencida {
+  background: #fff5f5;
+}
+
+.cuota-estado {
+  font-weight: 600;
+  text-align: right;
 }
 
 /* BUTTONS */

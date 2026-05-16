@@ -10,6 +10,11 @@ export const loanService = {
     const res = await api.post('/loans', payload)
     return res.data
   },
+
+  async payCuota(loanId) {
+    const res = await api.post(`/loans/${loanId}/pay-cuota`)
+    return res.data
+  },
 }
 
 export default loanService

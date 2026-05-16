@@ -161,8 +161,8 @@
                 </div>
               </div>
               <div class="tx-amount-wrap">
-                <div class="tx-amount" :class="tx.tipo === 'deposito' ? 'amount--credit' : 'amount--debit'">
-                  {{ tx.tipo === 'deposito' ? '+' : '-' }} $ {{ Number(tx.monto).toLocaleString('es-CO') }}
+                <div class="tx-amount" :class="isCredit(tx.tipo) ? 'amount--credit' : 'amount--debit'">
+                  {{ isCredit(tx.tipo) ? '+' : '-' }} $ {{ Number(tx.monto).toLocaleString('es-CO') }}
                 </div>
               </div>
             </div>
@@ -216,6 +216,17 @@
                 </div>
               </div>
 
+              <!-- CUENTA DESTINO (transferencia) -->
+              <div v-if="newTx.tipo === 'transferencia'" class="field">
+                <label class="label">Cuenta destino</label>
+                <input
+                  v-model="newTx.numero_cuenta_destino"
+                  class="input"
+                  placeholder="Ej: NF1234567890"
+                />
+                <p class="field-hint">Número de cuenta del beneficiario</p>
+              </div>
+
               <!-- DESCRIPCIÓN -->
               <div class="field">
                 <label class="label">Descripción <span class="label-opt">(opcional)</span></label>
@@ -229,6 +240,9 @@
                   <path d="M12 8v4M12 16h.01" />
                 </svg>
                 Saldo disponible: <strong>$ {{ saldoActual }}</strong>
+                <template v-if="newTx.tipo === 'transferencia' && account">
+                  · Tu cuenta: <strong>{{ account.numero_cuenta }}</strong>
+                </template>
               </div>
             </div>
             <div class="modal-footer">
@@ -237,6 +251,50 @@
                 <span v-if="creating" class="spinner"></span>
                 <span v-else>Realizar transacción</span>
               </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- MODAL COMPROBANTE -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showReceipt" class="modal-overlay" @click.self="closeReceipt">
+          <div class="modal-box receipt-box">
+            <div class="receipt-header">
+              <div class="receipt-icon">✅</div>
+              <h3 class="modal-title">Transferencia exitosa</h3>
+              <p class="receipt-sub">Comprobante de transacción</p>
+            </div>
+            <div class="receipt-body">
+              <div class="receipt-row receipt-row--highlight">
+                <span>N° comprobante</span>
+                <strong>{{ receipt.comprobante }}</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Fecha</span>
+                <strong>{{ receipt.fecha }}</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Monto</span>
+                <strong class="receipt-monto">$ {{ receipt.monto }}</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Cuenta origen</span>
+                <strong>{{ receipt.cuenta_origen }}</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Cuenta destino</span>
+                <strong>{{ receipt.cuenta_destino }}</strong>
+              </div>
+              <div v-if="receipt.descripcion" class="receipt-row">
+                <span>Descripción</span>
+                <strong>{{ receipt.descripcion }}</strong>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-primary" @click="closeReceipt">Cerrar</button>
             </div>
           </div>
         </div>
@@ -268,7 +326,9 @@ const txSuccess = ref('')
 const activeFilter = ref('todos')
 const search = ref('')
 
-const newTx = ref({ tipo: 'deposito', monto: '', descripcion: '' })
+const newTx = ref({ tipo: 'deposito', monto: '', descripcion: '', numero_cuenta_destino: '' })
+const showReceipt = ref(false)
+const receipt = ref({})
 
 const userInitials = computed(() => {
   const name = authStore.user?.name || 'U'
@@ -289,14 +349,14 @@ const saldoActual = computed(() => {
 
 const totalIngresos = computed(() => {
   const total = transactions.value
-    .filter(t => t.tipo === 'deposito')
+    .filter(t => isCredit(t.tipo))
     .reduce((sum, t) => sum + Number(t.monto), 0)
   return total.toLocaleString('es-CO')
 })
 
 const totalEgresos = computed(() => {
   const total = transactions.value
-    .filter(t => t.tipo !== 'deposito')
+    .filter(t => !isCredit(t.tipo))
     .reduce((sum, t) => sum + Number(t.monto), 0)
   return total.toLocaleString('es-CO')
 })
@@ -321,10 +381,20 @@ const filters = [
   { label: 'Depósitos', value: 'deposito' },
   { label: 'Retiros', value: 'retiro' },
   { label: 'Transferencias', value: 'transferencia' },
+  { label: 'Préstamos', value: 'prestamo' },
+  { label: 'Pagos cuota', value: 'pago_cuota' },
 ]
 
-const getTxIcon = (tipo) => ({ deposito: '💰', retiro: '💸', transferencia: '⚡' }[tipo] || '💳')
-const getTxLabel = (tipo) => ({ deposito: 'Depósito', retiro: 'Retiro', transferencia: 'Transferencia' }[tipo] || tipo)
+const isCredit = (tipo) => tipo === 'deposito' || tipo === 'prestamo'
+
+const getTxIcon = (tipo) => ({
+  deposito: '💰', retiro: '💸', transferencia: '⚡', prestamo: '🏦', pago_cuota: '📋',
+}[tipo] || '💳')
+
+const getTxLabel = (tipo) => ({
+  deposito: 'Depósito', retiro: 'Retiro', transferencia: 'Transferencia',
+  prestamo: 'Préstamo', pago_cuota: 'Pago cuota',
+}[tipo] || tipo)
 
 const handleLogout = () => {
   authStore.logout()
@@ -335,7 +405,12 @@ const closeModal = () => {
   showModal.value = false
   txError.value = ''
   txSuccess.value = ''
-  newTx.value = { tipo: 'deposito', monto: '', descripcion: '' }
+  newTx.value = { tipo: 'deposito', monto: '', descripcion: '', numero_cuenta_destino: '' }
+}
+
+const closeReceipt = () => {
+  showReceipt.value = false
+  receipt.value = {}
 }
 
 const loadData = async () => {
@@ -374,17 +449,43 @@ const handleCreateTx = async () => {
     return
   }
 
+  if (newTx.value.tipo === 'transferencia' && !newTx.value.numero_cuenta_destino?.trim()) {
+    txError.value = 'Ingresa el número de cuenta destino'
+    return
+  }
+
   creating.value = true
   try {
-    await transactionService.createTransaction({
+    const payload = {
       id_cuenta: account.value.id_cuenta,
       tipo: newTx.value.tipo,
       monto: Number(newTx.value.monto),
       descripcion: newTx.value.descripcion,
-    })
-    txSuccess.value = '¡Transacción realizada exitosamente!'
+    }
+    if (newTx.value.tipo === 'transferencia') {
+      payload.numero_cuenta_destino = newTx.value.numero_cuenta_destino.trim()
+    }
+
+    const res = await transactionService.createTransaction(payload)
+
+    if (newTx.value.tipo === 'transferencia' && res.data) {
+      const tx = res.data
+      receipt.value = {
+        comprobante: tx.comprobante || `NF-${tx.id_transaccion}`,
+        fecha: new Date(tx.fecha).toLocaleString('es-CO'),
+        monto: Number(tx.monto).toLocaleString('es-CO'),
+        cuenta_origen: tx.cuenta_origen || account.value.numero_cuenta,
+        cuenta_destino: tx.cuenta_destino || newTx.value.numero_cuenta_destino,
+        descripcion: tx.descripcion || newTx.value.descripcion,
+      }
+      closeModal()
+      showReceipt.value = true
+    } else {
+      txSuccess.value = '¡Transacción realizada exitosamente!'
+      setTimeout(closeModal, 1500)
+    }
+
     await loadData()
-    setTimeout(closeModal, 1500)
   } catch (e) {
     txError.value = e.response?.data?.message || 'Error al realizar la transacción'
   } finally {
@@ -979,6 +1080,24 @@ const menuItems = [
   color: #007BFF;
 }
 
+.tx-icon-wrap--prestamo {
+  background: rgba(111, 66, 193, 0.1);
+}
+
+.tx-icon-wrap--pago_cuota {
+  background: rgba(255, 193, 7, 0.15);
+}
+
+.badge--prestamo {
+  background: rgba(111, 66, 193, 0.12);
+  color: #6f42c1;
+}
+
+.badge--pago_cuota {
+  background: rgba(255, 193, 7, 0.15);
+  color: #d97706;
+}
+
 .tx-date {
   font-size: 0.72rem;
   color: #9ca3af;
@@ -1297,6 +1416,73 @@ const menuItems = [
   background: #fff5f5;
   border: 1px solid #fecaca;
   color: #991b1b;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: 'Inter', sans-serif;
+  margin-top: 0.15rem;
+}
+
+.receipt-box {
+  max-width: 420px;
+}
+
+.receipt-header {
+  text-align: center;
+  padding: 1.5rem 1.5rem 0.5rem;
+}
+
+.receipt-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.receipt-sub {
+  font-size: 0.85rem;
+  color: #6C757D;
+  font-family: 'Inter', sans-serif;
+  margin-top: 0.25rem;
+}
+
+.receipt-body {
+  padding: 1rem 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.receipt-row span {
+  color: #6C757D;
+}
+
+.receipt-row strong {
+  color: #1a202c;
+  text-align: right;
+}
+
+.receipt-row--highlight {
+  background: #f0f7ff;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  border: none;
+}
+
+.receipt-monto {
+  color: #007BFF;
+  font-size: 1rem;
 }
 
 /* TRANSITIONS */
