@@ -81,7 +81,7 @@ defineProps({
     badge: { type: String, default: '🇨🇴 Banca Digital Colombiana' },
     title: { type: String, default: 'Gestiona tus finanzas<br/><span class="gradient-text">con total confianza</span>' },
     subtitle: { type: String, default: 'NexoFin es el sistema bancario digital diseñado para colombianos.' },
-    primaryText: { type: String, default: 'Abrir mi cuenta' },
+    primaryText: { type: String, default: 'Crear mi cuenta' },
     primaryLink: { type: String, default: '/register' },
     secondaryText: { type: String, default: 'Ingresar a mi cuenta' },
     secondaryLink: { type: String, default: '/login' },

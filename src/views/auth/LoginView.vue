@@ -131,7 +131,9 @@ function validate() {
 async function handleLogin() {
   if (!validate()) return
   await authStore.login({ email: form.email, password: form.password })
-  if (!authStore.error) router.push('/')
+  if (!authStore.error) {
+    router.push(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+  }
 }
 </script>
 

@@ -10,7 +10,7 @@
             <a href="#seguridad" class="nav-link">Seguridad</a>
             <a href="#contacto" class="nav-link">Contacto</a>
             <router-link to="/login" class="btn-login">Iniciar sesión</router-link>
-            <router-link to="/register" class="btn-register">Abrir cuenta</router-link>
+            <router-link to="/register" class="btn-register">Crear cuenta</router-link>
         </div>
     </nav>
 </template>

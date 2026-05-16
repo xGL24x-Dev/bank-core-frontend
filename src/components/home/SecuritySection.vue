@@ -15,7 +15,7 @@
                     {{ item }}
                 </div>
             </div>
-            <router-link to="/register" class="btn-primary">Abrir cuenta segura</router-link>
+            <router-link to="/register" class="btn-primary">Crear cuenta segura</router-link>
         </div>
         <div class="security-visual">
             <div class="shield-box">
